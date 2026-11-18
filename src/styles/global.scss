@@ -407,3 +407,24 @@ html.cursor-active {
     display: none;
   }
 }
+
+// Background grain. A fixed layer behind all content (z-index -1 in the root
+// stacking context), so it textures only the page colour: images, cards and
+// panels with their own backgrounds sit on top of it, clean. Greyscale noise
+// at low opacity, so it works on light, dark and custom pages alike.
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: var(--grain-size);
+}
+
+@media print, (forced-colors: active) {
+  body::before {
+    display: none;
+  }
+}

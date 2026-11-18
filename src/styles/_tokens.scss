@@ -38,6 +38,10 @@
   // Brand
   --emerald: #0f7b54;
 
+  // Background grain: a fixed paper texture on the page colour only.
+  --grain: 0.05;
+  --grain-size: 200px;
+
   // Cursor glow: how far text under the pointer shifts toward the accent.
   --cursor-glow: 60%;
   --cursor-glow-size: 240px;
@@ -59,6 +63,7 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
+  --grain: 0.07; // grain reads less on dark pages
   --bg: #0e0e0e;
   --bg-raised: #181817;
   --bg-hover: #222220;
@@ -91,5 +96,6 @@
 
 [data-theme='custom'][data-tone='dark'] {
   color-scheme: dark;
+  --grain: 0.07;
   --fg: var(--pick-fg, #f3f2ee);
 }
