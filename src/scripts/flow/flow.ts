@@ -195,6 +195,9 @@ export function initFlow(): void {
 
   flow.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
+    // A new press starts fresh: a touch swipe never ends in a click, so a flag
+    // left over from it must not swallow this tap.
+    suppressClick = false;
     down = true;
     startX = lastX = e.clientX;
   });

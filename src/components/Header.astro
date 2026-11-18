@@ -61,6 +61,9 @@ const last = split(site.lastName, site.firstName.length);
   @use '../styles/mq' as *;
 
   .masthead {
+    // The name's words drift apart sideways as you scroll; never let that
+    // widen the page (clip keeps vertical overflow for the letters lifting away).
+    overflow-x: clip;
     padding: clamp(12px, 1.4vw, 20px) var(--margin) 0;
   }
 

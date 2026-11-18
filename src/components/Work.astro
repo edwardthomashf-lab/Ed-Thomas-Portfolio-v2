@@ -78,6 +78,7 @@ const lift = [0, 1, -1, 0.5];
   <div class="flow__meta">
     <p class="label flow__hint">
       <span class="flow__hint-motion">( Drag or hover — it flows )</span>
+      <span class="flow__hint-touch">( Swipe — it flows )</span>
       <span class="flow__hint-static">( Swipe or scroll sideways )</span>
     </p>
     <div class="flow__progress" aria-hidden="true"><span data-flow-progress></span></div>
@@ -307,8 +308,19 @@ const lift = [0, 1, -1, 0.5];
     }
   }
 
-  .flow__hint-static {
+  .flow__hint-static,
+  .flow__hint-touch {
     display: none;
+  }
+
+  @media (hover: none) {
+    :global(html[data-motion='on']) .flow__hint-motion {
+      display: none;
+    }
+
+    :global(html[data-motion='on']) .flow__hint-touch {
+      display: inline;
+    }
   }
 
   :global(html[data-motion='off']) .flow__hint-motion {

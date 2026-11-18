@@ -15,6 +15,11 @@ import { motionOn, onFrame, type Frame } from './ticker';
  *
  * Transforms use the individual `translate` property, so they compose with
  * any `transform` animation or hover already on the element.
+ *
+ * Strength depends on the layout. On phones (one column) any speed difference
+ * between stacked blocks makes them collide, so only the top-anchored name
+ * and image-in-frame parallax run there; drift is desktop-only. Travel is
+ * capped so neighbours can never close the gap between them.
  */
 
 interface Layer {
@@ -34,13 +39,16 @@ interface Mask {
   h: number;
 }
 
-const MAX = 260;
+const MAX = 140;
 /** Bottom-anchored layers sit near the page's end; keep their travel small. */
 const MAX_BOTTOM = 56;
 let layers: Layer[] = [];
 let masks: Mask[] = [];
 let vh = innerHeight;
 let maxScroll = 0;
+/** 0 on phones, 0.6 on tablets, 1 on desktop. */
+let strength = 1;
+let driftOn = true;
 
 /** Document offset ignoring transforms: offsetTop walks the layout, not paint. */
 function docTop(el: HTMLElement): number {
@@ -55,6 +63,8 @@ function docTop(el: HTMLElement): number {
 
 function measure(): void {
   vh = innerHeight;
+  strength = innerWidth < 720 ? 0 : innerWidth < 1024 ? 0.6 : 1;
+  driftOn = innerWidth >= 1024;
   maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
   layers = [...document.querySelectorAll<HTMLElement>('[data-speed], [data-drift]')].map((el) => ({
     el,
@@ -86,18 +96,23 @@ function update({ scroll }: Frame): void {
     if (l.y + l.h < scroll - vh || l.y > scroll + vh * 2) continue;
     let x: number;
     let y: number;
+    const drift = driftOn ? l.drift : 0;
     if (l.anchor === 'top') {
-      y = scroll * (1 - l.speed);
-      x = scroll * l.drift;
+      // The landing screen lifting away: runs everywhere (it only moves up and
+      // out), but is capped like the rest.
+      // Lifting faster than the page always moves away from what's below; lagging
+      // behind closes the gap, so that follows the layout's strength.
+      y = l.speed > 1 ? clamp(scroll * (1 - l.speed), MAX * 2) : clamp(scroll * (1 - l.speed) * strength, MAX * 0.5);
+      x = clamp(scroll * drift, MAX);
     } else if (l.anchor === 'bottom') {
       // Distance still to scroll: zero offset once the page bottoms out.
       const left = Math.max(0, maxScroll - scroll);
-      y = clamp(-left * (1 - l.speed), MAX_BOTTOM);
-      x = clamp(-left * l.drift, MAX_BOTTOM);
+      y = clamp(-left * (1 - l.speed) * strength, MAX_BOTTOM);
+      x = clamp(-left * drift, MAX_BOTTOM);
     } else {
       const travel = centre - (l.y + l.h / 2);
-      y = clamp(travel * (1 - l.speed), MAX);
-      x = clamp(travel * l.drift, MAX);
+      y = clamp(travel * (1 - l.speed) * strength, MAX * 0.5);
+      x = clamp(travel * drift, MAX);
     }
     l.el.style.translate = `${x.toFixed(2)}px ${y.toFixed(2)}px`;
   }

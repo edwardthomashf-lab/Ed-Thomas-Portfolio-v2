@@ -6,7 +6,7 @@ import { facts, site } from '../content/site';
 
 <section class="hero" aria-labelledby="hero-statement">
   <div class="hero__grid">
-    <figure class="portrait" data-speed="0.9" data-anchor="top">
+    <figure class="portrait" data-speed="0.95" data-anchor="top">
       <div class="portrait__frame" data-parallax-img>
         <Picture
           src={portrait}
@@ -44,7 +44,7 @@ import { facts, site } from '../content/site';
   <dl class="facts">
     {
       facts.map((fact, i) => (
-        <div class="fact" data-reveal data-speed={[1, 1.06, 0.97, 1.1][i]} style={`--reveal-i:${i}`}>
+        <div class="fact" data-reveal data-speed={[1, 1.03, 0.99, 1.05][i]} style={`--reveal-i:${i}`}>
           <dt class="label">{fact.label}</dt>
           <dd>
             {'live' in fact && fact.live && <span class="pulse" aria-hidden="true" />}
@@ -243,6 +243,10 @@ import { facts, site } from '../content/site';
 
   .hero__cta {
     justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4ch;
+    min-height: 32px;
     font-size: var(--text-small);
   }
 
