@@ -1,0 +1,666 @@
+---
+/**
+ * The header's three display toggles, written Harry-Atkins style as
+ * `Name ( Y )`. Hover draws an underline under the row, and the value rolls
+ * over when it changes. Theme opens a small Værsågod-style panel with a
+ * colour picker.
+ */
+---
+
+<div class="settings" role="group" aria-label="Display settings">
+  <button
+    type="button"
+    class="toggle toggle--flip"
+    popovertarget="theme-panel"
+    data-theme-toggle
+  >
+    <span class="toggle__name">Theme<span class="visually-hidden" data-theme-name>: light</span></span>
+    <span class="toggle__value" aria-hidden="true">
+      ( <span class="flip"><span data-theme-value>L</span></span> )
+    </span>
+  </button>
+
+  <button type="button" class="toggle toggle--flip" data-toggle="motion" aria-pressed="true">
+    <span class="toggle__name">Motion</span>
+    <span class="toggle__value" aria-hidden="true">
+      ( <span class="flip"><span data-value>Y</span></span> )
+    </span>
+  </button>
+
+  <button type="button" class="toggle toggle--flip" data-toggle="images" aria-pressed="true">
+    <span class="toggle__name">Images</span>
+    <span class="toggle__value" aria-hidden="true">
+      ( <span class="flip"><span data-value>Y</span></span> )
+    </span>
+  </button>
+
+  <div id="theme-panel" class="panel" popover aria-label="Theme" data-lenis-prevent>
+    <fieldset class="panel__set">
+      <legend class="label panel__legend">Theme</legend>
+      <label class="choice">
+        <input class="visually-hidden" type="radio" name="theme" value="light" />
+        <span>Light</span>
+      </label>
+      <label class="choice">
+        <input class="visually-hidden" type="radio" name="theme" value="dark" />
+        <span>Dark</span>
+      </label>
+      <!-- A spinning rainbow ring marks the custom theme, and shows on any page colour. -->
+      <label class="choice choice--custom">
+        <input class="visually-hidden" type="radio" name="theme" value="custom" />
+        <span class="ring" aria-hidden="true"></span>
+        <span>Custom</span>
+      </label>
+    </fieldset>
+
+    <!-- The colour picker: shown while the custom theme is selected. -->
+    <div class="picker" data-picker role="group" aria-label="Custom page colour">
+      <div
+        class="picker__area"
+        data-picker-area
+        role="slider"
+        tabindex="0"
+        aria-label="Colour"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+        aria-valuetext="Saturation 0%, brightness 0%"
+      >
+        <span class="picker__handle" data-picker-handle aria-hidden="true"></span>
+      </div>
+      <input
+        class="picker__hue"
+        data-picker-hue
+        type="range"
+        min="0"
+        max="359"
+        step="1"
+        value="0"
+        aria-label="Hue"
+      />
+      <div class="picker__hex">
+        <label for="picker-hex" class="label">Hex</label>
+        <span class="picker__field">
+          <span aria-hidden="true">#</span>
+          <input
+            id="picker-hex"
+            data-picker-hex
+            type="text"
+            inputmode="text"
+            maxlength="7"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="picker-hint"
+            aria-invalid="false"
+          />
+        </span>
+        <span id="picker-hint" class="picker__hint" data-picker-hint hidden>Use 3 or 6 hex digits</span>
+      </div>
+    </div>
+
+    <div class="accent">
+      <p class="label">Colours</p>
+      <dl class="accent__rows">
+        <div class="accent__row">
+          <dt><span class="accent__dot accent__dot--page" aria-hidden="true"></span>Page</dt>
+          <dd><span data-page-hex>#F4F3EF</span> · <span data-page-ratio>15.7:1</span></dd>
+        </div>
+        <div class="accent__row">
+          <dt><span class="accent__dot accent__dot--fill" aria-hidden="true"></span>Marks</dt>
+          <dd><span data-accent-fill>#0F7B54</span> · <span data-accent-fill-ratio>4.8:1</span></dd>
+        </div>
+        <div class="accent__row">
+          <dt><span class="accent__dot accent__dot--text" aria-hidden="true"></span>Text</dt>
+          <dd><span data-accent-text>#0F7B54</span> · <span data-accent-text-ratio>4.8:1</span></dd>
+        </div>
+      </dl>
+    </div>
+    <p class="panel__note">
+      Every colour here is a design token. Pick one and the accent is derived from it:
+      split-complementary, solved for contrast.
+    </p>
+  </div>
+</div>
+
+<script>
+  import { apply, current, watchSystem, type OnOff, type Theme } from '../scripts/settings';
+  import { contrast, parseHex } from '../scripts/accent';
+  import { initPicker } from '../scripts/picker';
+
+  const themeToggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]')!;
+  const themeValue = document.querySelector<HTMLElement>('[data-theme-value]')!;
+  const themeName = document.querySelector<HTMLElement>('[data-theme-name]')!;
+  const panel = document.getElementById('theme-panel')!;
+  const radios = panel.querySelectorAll<HTMLInputElement>('input[name="theme"]');
+  const toggles = document.querySelectorAll<HTMLButtonElement>('[data-toggle]');
+  const readout = {
+    page: panel.querySelector<HTMLElement>('[data-page-hex]')!,
+    pageRatio: panel.querySelector<HTMLElement>('[data-page-ratio]')!,
+    fill: panel.querySelector<HTMLElement>('[data-accent-fill]')!,
+    fillRatio: panel.querySelector<HTMLElement>('[data-accent-fill-ratio]')!,
+    text: panel.querySelector<HTMLElement>('[data-accent-text]')!,
+    textRatio: panel.querySelector<HTMLElement>('[data-accent-text-ratio]')!,
+  };
+
+  /**
+   * Show the live page colour (with its ink contrast) and accent pair,
+   * whichever theme produced them.
+   */
+  function renderAccent() {
+    const style = getComputedStyle(document.documentElement);
+    const bgValue = style.getPropertyValue('--bg').trim();
+    const bg = parseHex(bgValue);
+    const fg = parseHex(style.getPropertyValue('--fg'));
+    readout.page.textContent = bg ? bgValue.toUpperCase() : '—';
+    readout.pageRatio.textContent = bg && fg ? `${contrast(fg, bg).toFixed(1)}:1` : '—';
+    const pairs: [string, HTMLElement, HTMLElement][] = [
+      ['--accent', readout.fill, readout.fillRatio],
+      ['--accent-text', readout.text, readout.textRatio],
+    ];
+    for (const [token, hexEl, ratioEl] of pairs) {
+      const value = style.getPropertyValue(token).trim();
+      const rgb = parseHex(value);
+      hexEl.textContent = rgb ? value.toUpperCase() : '—';
+      ratioEl.textContent = rgb && bg ? `${contrast(rgb, bg).toFixed(1)}:1` : '—';
+    }
+  }
+
+  const THEME_LETTER: Record<Theme, string> = { light: 'L', dark: 'D', custom: 'C' };
+  const THEME_NAME: Record<Theme, string> = { light: 'light', dark: 'dark', custom: 'custom colour' };
+
+  /** Roll a value over: the old one slides up and out, the new one rises in. */
+  function setValue(el: HTMLElement, text: string) {
+    if (el.textContent === text) return;
+    const flips = el.parentElement?.classList.contains('flip');
+    if (!flips || document.documentElement.dataset.motion !== 'on' || !el.isConnected) {
+      el.textContent = text;
+      return;
+    }
+    const opts = { duration: 150, easing: 'cubic-bezier(0.83, 0, 0.17, 1)' };
+    el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-110%)' }], opts).finished.then(() => {
+      el.textContent = text;
+      el.animate([{ transform: 'translateY(110%)' }, { transform: 'translateY(0)' }], {
+        ...opts,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        duration: 260,
+      });
+    });
+  }
+
+  function render() {
+    const s = current();
+    setValue(themeValue, THEME_LETTER[s.theme]);
+    themeName.textContent = `: ${THEME_NAME[s.theme]}`;
+    radios.forEach((r) => (r.checked = r.value === s.theme));
+    toggles.forEach((btn) => {
+      const key = btn.dataset.toggle as 'motion' | 'images';
+      const on = s[key] === 'on';
+      btn.setAttribute('aria-pressed', String(on));
+      const value = btn.querySelector<HTMLElement>('[data-value]')!;
+      setValue(value, on ? 'Y' : 'N');
+    });
+    renderAccent();
+  }
+
+  // Popovers open centred by default; pin this one under the toggle group,
+  // so it never covers the Motion and Images switches.
+  const group = themeToggle.closest('.settings')!;
+  panel.addEventListener('beforetoggle', (event) => {
+    if ((event as ToggleEvent).newState !== 'open') return;
+    const r = group.getBoundingClientRect();
+    const width = Math.min(300, innerWidth - 24);
+    // Below the toggles if there's room, otherwise from the top of the screen;
+    // either way it never runs off the bottom (it scrolls inside instead).
+    const top = innerHeight - (r.bottom + 10) >= 320 ? r.bottom + 10 : 12;
+    panel.style.width = `${width}px`;
+    panel.style.top = `${top}px`;
+    panel.style.maxHeight = `${innerHeight - top - 12}px`;
+    panel.style.left = `${Math.max(12, Math.min(r.left, innerWidth - width - 12))}px`;
+  });
+
+  // Once open its height is known: if it doesn't fit below, lift it up so
+  // the whole picker shows (still scrolling inside on very short screens).
+  panel.addEventListener('toggle', (event) => {
+    if ((event as ToggleEvent).newState !== 'open') return;
+    if (panel.scrollHeight <= panel.clientHeight) return;
+    const full = panel.scrollHeight + (panel.offsetHeight - panel.clientHeight); // + borders
+    const top = Math.max(12, innerHeight - full - 12);
+    panel.style.top = `${top}px`;
+    panel.style.maxHeight = `${innerHeight - top - 12}px`;
+  });
+
+  // The panel is position: fixed; close it rather than let it drift on scroll.
+  addEventListener('scroll', () => panel.matches(':popover-open') && panel.hidePopover(), {
+    passive: true,
+  });
+
+  radios.forEach((radio) =>
+    radio.addEventListener('change', () => {
+      const theme = radio.value as Theme;
+      // Custom brings back the last colour picked.
+      apply(theme === 'custom' ? { theme, pick: current().pick } : { theme }, {
+        origin: radio.closest('label'),
+      });
+    }),
+  );
+
+  initPicker(panel.querySelector<HTMLElement>('[data-picker]')!);
+
+  toggles.forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.toggle as 'motion' | 'images';
+      const next: OnOff = current()[key] === 'on' ? 'off' : 'on';
+      apply({ [key]: next });
+    }),
+  );
+
+  document.addEventListener('settings:change', render);
+  watchSystem();
+
+  // Settings saved before the accent and ink were solved: derive them now.
+  const saved = current();
+  if (saved.theme === 'custom' && (!saved.accent || !saved.ink)) apply({ pick: saved.pick }, { instant: true });
+
+  render();
+</script>
+
+<style lang="scss">
+  .settings {
+    display: grid;
+    justify-items: start;
+  }
+
+  .toggle {
+    position: relative;
+    min-height: 28px;
+    display: grid;
+    grid-template-columns: 6ch auto;
+    align-items: center;
+    gap: 1.25ch;
+    line-height: 1.2;
+    color: var(--fg-muted);
+    transition: color var(--dur-1) var(--ease-out);
+
+    &:hover,
+    &[aria-expanded='true'] {
+      color: var(--fg);
+    }
+
+    &:active {
+      scale: 0.97;
+    }
+  }
+
+  // Hover: an underline draws in under the row; the value rolls over on change.
+  .toggle--flip::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 1px;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+
+  .toggle--flip:hover::after,
+  .toggle--flip[aria-expanded='true']::after {
+    transform: scaleX(1);
+  }
+
+  .toggle__value {
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    color: var(--fg-muted);
+    white-space: pre;
+    transition: color var(--dur-1) var(--ease-out);
+  }
+
+  .toggle:hover .toggle__value {
+    color: var(--fg);
+  }
+
+  // The value's window: it rolls up and out of this.
+  .flip {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    line-height: 1.4;
+
+    > span {
+      display: inline-block;
+      color: var(--fg);
+    }
+  }
+
+  .toggle[aria-pressed='true'] .flip > span {
+    color: var(--accent-text);
+  }
+
+  .panel {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 18px 18px 16px;
+    border: 1px dashed var(--rule-strong);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--fg);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    box-shadow: 0 24px 60px -24px color-mix(in oklab, #000 30%, transparent);
+    opacity: 0;
+    transform: translateY(-6px);
+    transition:
+      opacity var(--dur-1) var(--ease-out),
+      transform var(--dur-2) var(--ease-out),
+      overlay var(--dur-1) allow-discrete,
+      display var(--dur-1) allow-discrete;
+
+    &:popover-open {
+      opacity: 1;
+      transform: none;
+
+      @starting-style {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+    }
+  }
+
+  .panel__set {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    margin: 0;
+    padding: 0 0 14px;
+    border: 0;
+    border-bottom: 1px dashed var(--rule-strong);
+  }
+
+  .panel__legend {
+    float: left;
+    width: 100%;
+    padding: 0;
+    margin-bottom: 4px;
+  }
+
+  .choice {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: transparent;
+    transition: text-decoration-color var(--dur-1) var(--ease-out);
+
+    &:hover {
+      text-decoration-color: var(--rule-strong);
+    }
+
+    &:has(:checked) {
+      text-decoration-color: currentColor;
+    }
+
+    &:has(:focus-visible) {
+      outline: 2px solid var(--focus);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+  }
+
+  // Custom: a small rainbow ring beside the label.
+  .choice--custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ring {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: conic-gradient(#ff4d4d, #ffb84d, #f5f05a, #5ce68a, #4dd2ff, #6b6bff, #d65cff, #ff4d4d);
+    // Hollow centre: a ring, not a disc.
+    mask: radial-gradient(circle, transparent 3.5px, #000 4px);
+  }
+
+  :global(html[data-motion='on']) .ring {
+    animation: spin 4s linear infinite;
+  }
+
+  :global(html[data-motion='on']) .choice--custom:hover .ring {
+    animation-duration: 1.2s;
+  }
+
+  @keyframes spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+
+  // The picker
+  .picker {
+    display: none;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--rule-strong);
+  }
+
+  :global(html[data-theme='custom']) .picker {
+    display: grid;
+  }
+
+  .picker__area {
+    position: relative;
+    height: 150px;
+    border-radius: 6px;
+    // White to the hue across, then fading to black downwards.
+    background:
+      linear-gradient(to top, #000, transparent),
+      linear-gradient(to right, #fff, var(--picker-hue, red));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg) 25%, transparent);
+    cursor: crosshair;
+    touch-action: none;
+    outline-offset: 3px;
+  }
+
+  // Handles: white ring inside a dark one, visible on any colour.
+  .picker__handle {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: var(--picker-colour);
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.6),
+      0 2px 6px rgb(0 0 0 / 0.35);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  // Hue: a native range input, restyled for both engine families.
+  .picker__hue {
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    outline-offset: 3px;
+
+    --track: linear-gradient(
+      to right,
+      #f00 0%,
+      #ff0 16.67%,
+      #0f0 33.33%,
+      #0ff 50%,
+      #00f 66.67%,
+      #f0f 83.33%,
+      #f00 100%
+    );
+
+    &::-webkit-slider-runnable-track {
+      height: 12px;
+      border-radius: 999px;
+      background: var(--track);
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg) 25%, transparent);
+    }
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      margin-top: -3px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: var(--picker-hue);
+      box-shadow:
+        0 0 0 1px rgb(0 0 0 / 0.6),
+        0 2px 6px rgb(0 0 0 / 0.35);
+    }
+
+    &::-moz-range-track {
+      height: 12px;
+      border-radius: 999px;
+      background: var(--track);
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg) 25%, transparent);
+    }
+
+    &::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: var(--picker-hue);
+      box-shadow:
+        0 0 0 1px rgb(0 0 0 / 0.6),
+        0 2px 6px rgb(0 0 0 / 0.35);
+    }
+  }
+
+  .picker__hex {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 6px 10px;
+  }
+
+  .picker__field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 6px;
+    background: var(--bg-raised);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+
+    &:has(input:focus-visible) {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    &:has([aria-invalid='true']) {
+      border-color: var(--fg);
+      border-style: dashed;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      text-transform: uppercase;
+      outline: none;
+    }
+  }
+
+  .picker__hint {
+    grid-column: 2;
+    font-size: var(--text-label);
+    color: var(--fg-muted);
+  }
+
+  // Windows High Contrast: gradients vanish, so keep handles and edges visible.
+  @media (forced-colors: active) {
+    .picker__area,
+    .picker__field {
+      border: 1px solid CanvasText;
+    }
+
+    .picker__handle {
+      border-color: Highlight;
+      forced-color-adjust: none;
+    }
+  }
+
+  .accent {
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--rule-strong);
+  }
+
+  .accent__rows {
+    display: grid;
+    gap: 2px;
+    margin: 6px 0 0;
+  }
+
+  .accent__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--text-small);
+
+    dt {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    dd {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .accent__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg) 20%, transparent);
+  }
+
+  .accent__dot--page {
+    background: var(--bg);
+  }
+
+  .accent__dot--fill {
+    background: var(--accent);
+  }
+
+  .accent__dot--text {
+    background: var(--accent-text);
+  }
+
+  .panel__note {
+    margin-top: 12px;
+    font-size: var(--text-small);
+    line-height: 1.35;
+    color: var(--fg-muted);
+  }
+</style>

@@ -1,0 +1,888 @@
+---
+import { Image } from 'astro:assets';
+import portrait from '../assets/me/edward.jpg';
+import fordShot from '../assets/work/ford.jpg';
+import hfShot from '../assets/work/hook-and-flanker.jpg';
+import ggShot from '../assets/work/good-going.jpg';
+import scShot from '../assets/work/staying-connected.jpg';
+import { about, capabilityCategories, type Chip } from '../content/site';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Flatten the statement into words and chips, so each can ink in on its own.
+ * Text that starts with punctuation is glued to whatever came before it.
+ */
+type Token = { kind: 'word'; text: string; glue: boolean } | { kind: 'chip'; chip: Chip };
+const tokens: Token[] = [];
+for (const seg of about.statement) {
+  if (typeof seg !== 'string') {
+    tokens.push({ kind: 'chip', chip: seg.chip });
+    continue;
+  }
+  const glueFirst = /^[,.;:]/.test(seg);
+  seg
+    .trim()
+    .split(/\s+/)
+    .forEach((text, i) => tokens.push({ kind: 'word', text, glue: i === 0 && glueFirst }));
+}
+
+const thumb = { width: 96, height: 60, format: 'webp' as const, quality: 70 };
+
+/** Four capability lines, alternating direction and style. */
+const rows = about.capabilities;
+const shapes = ['circle', 'square', 'pill', 'diamond'];
+---
+
+<section id="about" class="about" aria-labelledby="about-title">
+  <header class="about__head">
+    <h2 id="about-title" class="label">( About )</h2>
+    <p class="label about__span">Edward Thomas, 2016 — Now</p>
+  </header>
+
+  <!-- 1. The statement: words ink in as you scroll; chips pop in beside the words they name. -->
+  <p class="statement" data-ink>
+    {
+      tokens.map((t) =>
+        t.kind === 'word' ? (
+          <>
+            {!t.glue && ' '}
+            <span class="w">{t.text}</span>
+          </>
+        ) : (
+          <>
+            {' '}
+            <span class:list={['chip', `chip--${t.chip}`]} aria-hidden="true">
+              {t.chip === 'portrait' && (
+                <Image src={portrait} alt="" width={120} height={150} format="webp" quality={70} class="chip__img" />
+              )}
+              {t.chip === 'component' && (
+                <span class="chip__button">
+                  Button<span class="chip__ring" />
+                </span>
+              )}
+              {t.chip === 'tokens' && (
+                <>
+                  <span class="chip__dot chip__dot--fg" />
+                  <span class="chip__dot chip__dot--accent" />
+                  <span class="chip__dot chip__dot--raised" />
+                </>
+              )}
+              {t.chip === 'check' && <span class="chip__check">AA ✓</span>}
+              {t.chip === 'ford' && <Image src={fordShot} alt="" {...thumb} class="chip__img" />}
+              {t.chip === 'clients' && (
+                <>
+                  <Image src={hfShot} alt="" {...thumb} class="chip__img chip__stack" />
+                  <Image src={ggShot} alt="" {...thumb} class="chip__img chip__stack" />
+                  <Image src={scShot} alt="" {...thumb} class="chip__img chip__stack" />
+                </>
+              )}
+            </span>
+          </>
+        ),
+      )
+    }
+  </p>
+
+  <!-- 2. Numbers, rolled up like an odometer; each column travels at its own speed. -->
+  <dl class="stats">
+    {
+      about.stats.map((stat, i) => (
+        <div class="stat" data-reveal data-speed={[0.94, 1.04, 0.97, 1.08][i]} style={`--reveal-i:${i}`}>
+          <dt class="label stat__label">{stat.label}</dt>
+          <dd class="stat__value">
+            <span class="visually-hidden">
+              {stat.prefix}
+              {stat.value}
+              {stat.suffix}
+            </span>
+            <span class="odo" aria-hidden="true">
+              {stat.prefix && <span class="odo__affix">{stat.prefix}</span>}
+              {[...String(stat.value)].map((d, j) => (
+                <span class="odo__digit">
+                  <span class="odo__strip" style={`--d:${d};--j:${i + j}`}>
+                    {Array.from({ length: 10 }, (_, n) => (
+                      <span>{n}</span>
+                    ))}
+                  </span>
+                </span>
+              ))}
+              {stat.suffix && <span class="odo__affix odo__affix--accent">{stat.suffix}</span>}
+            </span>
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+
+  <!-- 3. Experience as an index that inverts under the cursor, with a card that follows it. -->
+  <div class="split">
+    <div class="split__aside">
+      <h3 class="label">( Experience )</h3>
+      <p class="split__note">{about.experienceNote}</p>
+    </div>
+    <ol class="roles" data-roles>
+      {
+        about.experience.map((row, i) => (
+          <li class="role" data-reveal data-role={i} style={`--reveal-i:${i}`}>
+            <span class="role__period">{row.period}</span>
+            <span class="role__title">{row.role}</span>
+            <span class="role__line">{row.line}</span>
+            <span class="role__org">{row.org}</span>
+            <span class="visually-hidden">
+              {row.summary} Tools: {row.tech.join(', ')}.
+            </span>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+
+  <div class="peek" data-peek aria-hidden="true">
+    {
+      about.experience.map((row, i) => (
+        <div class="peek__card" data-peek-card={i}>
+          <p class="peek__period">{row.period}</p>
+          <p class="peek__summary">{row.summary}</p>
+          <p class="peek__tech">
+            {row.tech.map((t) => (
+              <span>{t}</span>
+            ))}
+          </p>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- 4. How I work: four lines, numbered. -->
+  <div class="split">
+    <div class="split__aside">
+      <h3 class="label">( How I work )</h3>
+    </div>
+    <ol class="principles">
+      {
+        about.principles.map((line, i) => (
+          <li class="principle" data-reveal style={`--reveal-i:${i}`}>
+            <span class="principle__n">{pad(i + 1)}</span>
+            <span class="principle__text">{line}</span>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+
+  <!-- 5. Capabilities: four lines, one per group, gliding in alternating directions. -->
+  <div class="caps-head">
+    <h3 class="label caps-head__label" id="caps-title">( Capabilities )</h3>
+    <div class="caps-filters" role="group" aria-labelledby="caps-title" aria-describedby="caps-hint">
+      {
+        capabilityCategories.map((c) => (
+          <button type="button" class="tap caps-filter" data-cap-filter={c.id} aria-pressed="false">
+            {c.label}
+          </button>
+        ))
+      }
+    </div>
+    <p id="caps-hint" class="visually-hidden">Select a category to highlight its skills; select it again to clear.</p>
+  </div>
+  <p class="visually-hidden">{about.capabilities.flat().map((c) => c.name).join(', ')}.</p>
+  <p class="visually-hidden" aria-live="polite" data-caps-status></p>
+  <div class="marquee" aria-hidden="true" data-marquee-wrap>
+    {
+      rows.map((row, r) => (
+        <div class:list={['marquee__row', { 'marquee__row--outline': r % 2 === 1 }]} data-marquee={r % 2 === 0 ? -1 : 1}>
+          <div class="marquee__inner" data-marquee-inner>
+            {[0, 1].map((copy) => (
+              <div class="marquee__set" data-copy={copy}>
+                {row.map((item, k) => (
+                  <>
+                    <span class="marquee__item" data-cat={item.cat}>{item.name}</span>
+                    <span class:list={['marquee__sep', `marquee__sep--${shapes[(k + r) % shapes.length]}`]} />
+                  </>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<script>
+  import { initAbout } from '../scripts/about';
+  initAbout();
+</script>
+
+<style lang="scss">
+  @use '../styles/mq' as *;
+
+  .about {
+    margin-top: var(--section);
+
+    > :not(.marquee):not(.peek) {
+      margin-inline: var(--margin);
+    }
+  }
+
+  .about__head {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+
+    h2 {
+      font-weight: 400;
+    }
+  }
+
+  // 1. Statement
+  .statement {
+    margin-top: clamp(32px, 5vw, 72px);
+    font-size: clamp(1.75rem, 0.9rem + 3.6vw, 5.25rem);
+    line-height: 1.08;
+    letter-spacing: var(--tracking-tight);
+    font-weight: 500;
+    text-wrap: pretty;
+    color: var(--fg);
+  }
+
+  // Unlit words are muted (still readable); lit words are full ink.
+  .w {
+    color: color-mix(in oklab, var(--fg) calc(var(--ink, 1) * 100%), var(--fg-muted));
+  }
+
+  .chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.08em;
+    height: 0.78em;
+    min-width: 1.2em;
+    padding: 0 0.1em;
+    vertical-align: -0.05em;
+    border-radius: 0.14em;
+    background: var(--bg-raised);
+    overflow: hidden;
+    opacity: var(--pop, 1);
+    scale: calc(0.55 + var(--pop, 1) * 0.45);
+    rotate: calc((1 - var(--pop, 1)) * -12deg);
+    transition: transform var(--dur-2) var(--ease-spring);
+
+    &:hover {
+      transform: scale(1.12) rotate(-3deg);
+    }
+  }
+
+  .chip__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .chip--portrait {
+    width: 0.66em;
+    min-width: 0;
+    padding: 0;
+    border-radius: 0.12em;
+  }
+
+  .chip--ford,
+  .chip--clients {
+    width: 1.3em;
+    padding: 0;
+  }
+
+  .chip--clients {
+    width: 1.9em;
+    background: none;
+    overflow: visible;
+    justify-content: flex-start;
+
+    .chip__stack {
+      flex: none;
+      width: 1.05em;
+      height: 0.7em;
+      border-radius: 0.1em;
+      box-shadow: 0 0.04em 0.12em color-mix(in oklab, #000 30%, transparent);
+
+      & + .chip__stack {
+        margin-left: -0.62em;
+      }
+
+      &:nth-child(2) {
+        rotate: 6deg;
+      }
+
+      &:nth-child(3) {
+        rotate: -5deg;
+      }
+    }
+  }
+
+  .chip--component {
+    padding: 0 0.12em;
+    background: none;
+    overflow: visible;
+  }
+
+  // A real (tiny) component: a pill button with its focus ring.
+  .chip__button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 1.9em;
+    padding: 0 0.85em;
+    border-radius: 999px;
+    background: var(--fg);
+    color: var(--bg);
+    font-size: max(0.27em, 11px);
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .chip__ring {
+    position: absolute;
+    inset: -0.35em;
+    border: 2px solid var(--accent);
+    border-radius: 999px;
+    animation: ring 2.8s var(--ease-out) infinite;
+  }
+
+  @keyframes ring {
+    0%,
+    40% {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    55%,
+    85% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  .chip--tokens {
+    gap: 0;
+    padding: 0 0.12em;
+  }
+
+  .chip__dot {
+    width: 0.36em;
+    height: 0.36em;
+    border-radius: 50%;
+    border: 1.5px solid var(--bg);
+
+    & + & {
+      margin-left: -0.1em;
+    }
+  }
+
+  .chip__dot--fg {
+    background: var(--fg);
+  }
+
+  .chip__dot--accent {
+    background: var(--accent);
+  }
+
+  .chip__dot--raised {
+    background: var(--bg-hover);
+  }
+
+  .chip--check {
+    padding: 0 0.16em;
+    background: none;
+    border: 1.5px solid var(--accent);
+  }
+
+  .chip__check {
+    font-family: var(--font-mono);
+    font-size: max(0.26em, 11px);
+    letter-spacing: 0;
+    color: var(--accent-text);
+  }
+
+  // 2. Stats
+  .stats {
+    @include index-grid;
+    row-gap: 36px;
+    margin-top: clamp(72px, 10vw, 160px);
+
+    @include below($desktop) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .stat__label {
+    max-width: 24ch;
+  }
+
+  .stat__value {
+    font-size: clamp(4rem, 2rem + 8vw, 10.5rem);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.06em;
+  }
+
+  .odo {
+    display: inline-flex;
+    align-items: flex-start;
+  }
+
+  .odo__digit {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+  }
+
+  .odo__strip {
+    display: flex;
+    flex-direction: column;
+    translate: 0 calc(var(--d) * -1em);
+    transition: translate 1.8s var(--ease-out);
+    transition-delay: calc(200ms + var(--j) * 110ms);
+
+    span {
+      display: block;
+      width: max-content;
+      height: 1em;
+    }
+  }
+
+  :global(html.js[data-motion='on']) .stat:not(.is-in) .odo__strip {
+    translate: 0 0;
+  }
+
+  .odo__affix {
+    padding-right: 0.02em;
+  }
+
+  // Display-size text only needs 3:1 (WCAG 1.4.3), so it can take the more
+  // vivid mark colour.
+  .odo__affix--accent {
+    color: var(--accent);
+  }
+
+  // 3. Experience
+  .split {
+    @include index-grid;
+    row-gap: 18px;
+    margin-top: clamp(80px, 11vw, 170px);
+  }
+
+  .split__aside {
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+
+    h3 {
+      font-weight: 400;
+    }
+  }
+
+  .split__note {
+    margin-top: 10px;
+    max-width: 26ch;
+    font-size: var(--text-small);
+    color: var(--fg-muted);
+  }
+
+  .roles,
+  .principles {
+    grid-column: 1 / -1;
+
+    @include from($desktop) {
+      grid-column: 2 / span 3;
+    }
+  }
+
+  .roles {
+    border-top: 1px solid var(--rule);
+  }
+
+  .role {
+    position: relative;
+    display: grid;
+    grid-template-columns: 11ch 1fr;
+    gap: 2px 16px;
+    padding: 18px 10px;
+    border-bottom: 1px solid var(--rule);
+    isolation: isolate;
+    transition: color var(--dur-2) var(--ease-out);
+
+    @include from($tablet) {
+      grid-template-columns: 13ch 1fr auto;
+      align-items: baseline;
+    }
+
+    // The row floods with ink from below as the cursor arrives.
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: var(--fg);
+      transform: scaleY(0);
+      transform-origin: bottom;
+      transition: transform var(--dur-2) var(--ease-in-out);
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        color: var(--bg);
+
+        &::before {
+          transform: scaleY(1);
+        }
+
+        .role__period,
+        .role__line,
+        .role__org {
+          color: color-mix(in oklab, var(--bg) 78%, var(--fg));
+        }
+      }
+    }
+  }
+
+  .role__period {
+    font-family: var(--font-mono);
+    font-size: var(--text-label);
+    color: var(--fg-muted);
+    transition: color var(--dur-2) var(--ease-out);
+  }
+
+  .role__title {
+    font-size: clamp(1.125rem, 0.9rem + 1vw, 1.75rem);
+    letter-spacing: var(--tracking-tight);
+    line-height: 1.1;
+  }
+
+  .role__line {
+    grid-column: 2;
+    font-size: var(--text-small);
+    color: var(--fg-muted);
+    transition: color var(--dur-2) var(--ease-out);
+
+    @include from($tablet) {
+      grid-row: 2;
+    }
+  }
+
+  .role__org {
+    grid-column: 2;
+    font-size: var(--text-small);
+    color: var(--fg-muted);
+    transition: color var(--dur-2) var(--ease-out);
+
+    @include from($tablet) {
+      grid-column: 3;
+      grid-row: 1;
+      text-align: right;
+    }
+  }
+
+  // The card that trails the cursor over the experience rows.
+  .peek {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: 280px;
+    pointer-events: none;
+    opacity: 0;
+    scale: 0.85;
+    transition:
+      opacity var(--dur-1) var(--ease-out),
+      scale var(--dur-2) var(--ease-spring);
+
+    &.is-on {
+      opacity: 1;
+      scale: 1;
+    }
+
+    @media (hover: none) {
+      display: none;
+    }
+  }
+
+  .peek__card {
+    display: none;
+    padding: 16px;
+    border-radius: 10px;
+    background: var(--accent-text);
+    color: var(--bg);
+    box-shadow: 0 24px 50px -20px color-mix(in oklab, #000 50%, transparent);
+
+    &.is-active {
+      display: grid;
+      gap: 10px;
+    }
+  }
+
+  .peek__period {
+    font-family: var(--font-mono);
+    font-size: var(--text-label);
+    text-transform: uppercase;
+  }
+
+  .peek__summary {
+    font-size: var(--text-small);
+    line-height: 1.35;
+  }
+
+  .peek__tech {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+
+    span {
+      padding: 3px 7px;
+      border: 1px solid color-mix(in oklab, var(--bg) 45%, transparent);
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+    }
+  }
+
+  // 4. Principles
+  .principles {
+    border-top: 1px solid var(--rule);
+  }
+
+  .principle {
+    display: grid;
+    grid-template-columns: 4ch 1fr;
+    gap: 12px;
+    align-items: baseline;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: var(--text-lead);
+    line-height: 1.1;
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .principle__n {
+    font-family: var(--font-mono);
+    font-size: var(--text-small);
+    letter-spacing: 0;
+    color: var(--fg-muted);
+    transition: color var(--dur-1) var(--ease-out);
+  }
+
+  .principle__text {
+    transition: translate var(--dur-2) var(--ease-out);
+  }
+
+  .principle:hover {
+    .principle__n {
+      color: var(--accent-text);
+    }
+
+    .principle__text {
+      translate: 12px 0;
+    }
+  }
+
+  // 5. Marquee
+  .caps-head {
+    @include index-grid;
+    row-gap: 10px;
+    align-items: baseline;
+    margin-top: clamp(80px, 11vw, 170px);
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .caps-head__label {
+    font-weight: 400;
+  }
+
+  .caps-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 clamp(14px, 2vw, 28px);
+    font-size: var(--text-small);
+
+    @include from($tablet) {
+      grid-column: 2 / -1;
+    }
+
+    @include from($desktop) {
+      justify-content: flex-end;
+    }
+  }
+
+  .caps-filter {
+    gap: 7px;
+    color: var(--fg-muted);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    text-decoration-color: transparent;
+    transition:
+      color var(--dur-1) var(--ease-out),
+      text-decoration-color var(--dur-1) var(--ease-out);
+
+    // A small accent square that appears when the category is on.
+    &::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      background: var(--accent);
+      scale: 0;
+      transition: scale var(--dur-2) var(--ease-spring);
+    }
+
+    &:hover {
+      color: var(--fg);
+      text-decoration-color: var(--rule-strong);
+    }
+
+    &[aria-pressed='true'] {
+      color: var(--fg);
+      text-decoration-color: currentColor;
+
+      &::before {
+        scale: 1;
+      }
+    }
+  }
+
+  .marquee {
+    margin-top: clamp(20px, 3vw, 40px);
+    overflow: hidden;
+    display: grid;
+    // One screen-wide track: without this the track grows to the longest
+    // line, and "the middle of a line" would be far off screen.
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.04em;
+    // overflow: hidden clips at the box edge, and line-height 1.02 leaves no
+    // room for descenders (g, y, p) on the last line, or the outline stroke.
+    padding-block: 0.06em 0.24em;
+    font-size: clamp(2.25rem, 1rem + 4.6vw, 6.25rem);
+    font-weight: 500;
+    line-height: 1.02;
+    letter-spacing: var(--tracking-display);
+  }
+
+  .marquee__row {
+    min-width: 0;
+    white-space: nowrap;
+    transform-origin: 50% 50%;
+  }
+
+  .marquee__inner {
+    position: relative;
+    display: inline-flex;
+    will-change: transform;
+  }
+
+  .marquee__set {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .marquee__item {
+    padding-inline: 0.18em;
+    transition:
+      color var(--dur-2) var(--ease-out),
+      -webkit-text-stroke-color var(--dur-2) var(--ease-out);
+
+    &:hover {
+      color: var(--accent);
+    }
+  }
+
+  .marquee__row--outline .marquee__item {
+    color: transparent;
+    -webkit-text-stroke: max(1px, 0.012em) var(--fg);
+
+    &:hover {
+      color: var(--fg);
+    }
+  }
+
+  .marquee__sep {
+    flex: none;
+    width: 0.28em;
+    height: 0.28em;
+    margin-inline: 0.16em;
+    background: var(--accent);
+  }
+
+  .marquee__sep--circle {
+    border-radius: 50%;
+  }
+
+  .marquee__sep--pill {
+    width: 0.46em;
+    border-radius: 999px;
+  }
+
+  .marquee__sep--diamond {
+    rotate: 45deg;
+    scale: 0.85;
+  }
+
+  .marquee__row--outline .marquee__sep {
+    background: none;
+    border: max(1px, 0.012em) solid var(--fg);
+  }
+
+  .marquee__sep {
+    transition: opacity var(--dur-2) var(--ease-out);
+  }
+
+  // A category is selected: its skills light up in the accent, the rest recede.
+  .marquee.is-filtered {
+    .marquee__item {
+      color: var(--fg-muted);
+      -webkit-text-stroke-color: var(--fg-muted);
+    }
+
+    .marquee__item.is-match {
+      color: var(--accent);
+      -webkit-text-stroke-color: var(--accent);
+    }
+
+    .marquee__sep {
+      opacity: 0.3;
+    }
+  }
+
+  // Dimmed outline lines stay outlines; their matches fill in.
+  .marquee.is-filtered .marquee__row--outline .marquee__item:not(.is-match) {
+    color: transparent;
+  }
+
+  // With Motion off the capabilities simply wrap.
+  :global(html[data-motion='off']) .marquee__row,
+  :global(html:not(.js)) .marquee__row {
+    white-space: normal;
+    padding-inline: var(--margin);
+    font-size: 0.55em;
+
+    .marquee__inner,
+    .marquee__set {
+      display: flex;
+      flex-wrap: wrap;
+      transform: none !important;
+    }
+
+    [data-copy='1'] {
+      display: none;
+    }
+  }
+</style>

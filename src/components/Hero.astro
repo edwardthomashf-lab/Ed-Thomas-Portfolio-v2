@@ -1,0 +1,268 @@
+---
+import { Picture } from 'astro:assets';
+import portrait from '../assets/me/edward.jpg';
+import { facts, site } from '../content/site';
+---
+
+<section class="hero" aria-labelledby="hero-statement">
+  <div class="hero__grid">
+    <figure class="portrait" data-speed="0.9" data-anchor="top">
+      <div class="portrait__frame" data-parallax-img>
+        <Picture
+          src={portrait}
+          formats={['avif', 'webp']}
+          widths={[360, 540, 720, 960]}
+          sizes="(min-width: 1024px) 24vw, (min-width: 720px) 46vw, 70vw"
+          alt="Edward Thomas, smiling, in a navy blazer and white shirt against a pale grey wall."
+          class="media-img portrait__img"
+          loading="eager"
+          fetchpriority="high"
+        />
+        <div class="media-swatch portrait__swatch" aria-hidden="true">
+          <span class="label">( Portrait )</span>
+          <span>{site.name}</span>
+        </div>
+      </div>
+      <figcaption class="label">( Fig. 01 ) Edward, Chelmsford</figcaption>
+    </figure>
+
+    <p class="hero__folio label" data-speed="1.35" data-anchor="top">[{site.folio}]</p>
+
+    <div class="hero__copy" data-speed="1.12" data-anchor="top">
+      <p class="statement" id="hero-statement">
+        <span class="visually-hidden">{site.tagline}</span>
+        <span class="typed" aria-hidden="true">
+          <span class="typed__ghost">{site.tagline}</span>
+          <span class="typed__live" data-typed={site.tagline}>{site.tagline}</span>
+        </span>
+      </p>
+      <p class="lede">{site.lede}</p>
+      <a class="hero__cta" href="#work"><span aria-hidden="true">↳</span> <span class="draw">Selected work</span></a>
+    </div>
+  </div>
+
+  <dl class="facts">
+    {
+      facts.map((fact, i) => (
+        <div class="fact" data-reveal data-speed={[1, 1.06, 0.97, 1.1][i]} style={`--reveal-i:${i}`}>
+          <dt class="label">{fact.label}</dt>
+          <dd>
+            {'live' in fact && fact.live && <span class="pulse" aria-hidden="true" />}
+            {fact.value}
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+</section>
+
+<script>
+  /**
+   * Types the statement out after the name has risen in. The full sentence is
+   * always in the DOM (a visually hidden copy for screen readers, and an
+   * invisible ghost that reserves its space), so nothing shifts or goes missing.
+   */
+  const live = document.querySelector<HTMLElement>('[data-typed]');
+  const root = document.documentElement;
+
+  function type(el: HTMLElement) {
+    const text = el.dataset.typed ?? '';
+    if (root.dataset.motion !== 'on') {
+      el.textContent = text;
+      el.classList.remove('is-typing');
+      return;
+    }
+    el.textContent = '';
+    el.classList.add('is-typing');
+    let i = 0;
+    const step = () => {
+      if (root.dataset.motion !== 'on') {
+        el.textContent = text;
+        el.classList.remove('is-typing');
+        return;
+      }
+      el.textContent = text.slice(0, ++i);
+      if (i < text.length) {
+        // A touch slower on punctuation, like someone typing it.
+        setTimeout(step, /[,.]/.test(text[i - 1]) ? 220 : 24 + Math.random() * 30);
+      } else {
+        setTimeout(() => el.classList.remove('is-typing'), 2400);
+      }
+    };
+    setTimeout(step, 1100);
+  }
+
+  if (live) type(live);
+</script>
+
+<style lang="scss">
+  @use '../styles/mq' as *;
+
+  .hero {
+    padding: clamp(56px, 9vw, 140px) var(--margin) 0;
+  }
+
+  .hero__grid {
+    @include index-grid;
+    row-gap: 40px;
+    align-items: end;
+
+    @include from($desktop) {
+      grid-template-rows: auto;
+    }
+  }
+
+  .portrait {
+    grid-column: 1;
+    display: grid;
+    gap: 8px;
+    max-width: 420px;
+
+    @include below($tablet) {
+      order: 2;
+      width: 72%;
+    }
+  }
+
+  .portrait__frame {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--bg-raised);
+  }
+
+  .portrait__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    // Room for the image to slide inside its frame as the page scrolls.
+    scale: 1.14;
+    transition: transform 1.2s var(--ease-out), filter var(--dur-2) var(--ease-out);
+  }
+
+  .portrait__frame:hover .portrait__img {
+    transform: scale(1.035);
+  }
+
+  :global(html.js[data-motion='on']) .portrait__frame {
+    animation: unveil 1.3s var(--ease-in-out) 350ms both;
+  }
+
+  @keyframes unveil {
+    from {
+      clip-path: inset(100% 0 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  .portrait__swatch {
+    position: absolute;
+    inset: 0;
+    align-content: space-between;
+    padding: 14px;
+    background: var(--bg-raised);
+    font-size: var(--text-small);
+  }
+
+  .hero__folio {
+    display: none;
+
+    @include from($desktop) {
+      display: block;
+      grid-column: 2;
+      align-self: start;
+    }
+  }
+
+  .hero__copy {
+    display: grid;
+    gap: 22px;
+    max-width: 46rem;
+
+    @include from($tablet) {
+      grid-column: 2;
+    }
+
+    @include from($desktop) {
+      grid-column: 3 / span 2;
+    }
+
+    @include below($tablet) {
+      order: 1;
+    }
+  }
+
+  .statement {
+    font-size: var(--text-statement);
+    line-height: 1.02;
+    letter-spacing: var(--tracking-tight);
+    font-weight: 500;
+    text-wrap: balance;
+  }
+
+  .typed {
+    position: relative;
+    display: block;
+  }
+
+  .typed__ghost {
+    visibility: hidden;
+  }
+
+  .typed__live {
+    position: absolute;
+    inset: 0;
+
+    &.is-typing::after {
+      content: '';
+      display: inline-block;
+      width: 0.06em;
+      height: 0.8em;
+      margin-left: 0.04em;
+      vertical-align: -0.04em;
+      background: var(--accent);
+      animation: blink 1s steps(1) infinite;
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .lede {
+    max-width: 34rem;
+    font-size: clamp(1rem, 0.9rem + 0.35vw, 1.1875rem);
+    line-height: 1.35;
+    color: var(--fg-muted);
+  }
+
+  .hero__cta {
+    justify-self: start;
+    font-size: var(--text-small);
+  }
+
+  .facts {
+    @include index-grid;
+    row-gap: 20px;
+    margin-top: clamp(48px, 7vw, 96px);
+    font-size: var(--text-small);
+    line-height: 1.3;
+
+    dd {
+      margin-top: 4px;
+      max-width: 28ch;
+    }
+  }
+
+  // Each fact carries its own rule, so the columns can drift apart as you scroll.
+  .fact {
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+  }
+
+</style>

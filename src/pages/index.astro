@@ -1,0 +1,36 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import Work from '../components/Work.astro';
+import About from '../components/About.astro';
+import Contact from '../components/Contact.astro';
+import StatusBar from '../components/StatusBar.astro';
+---
+
+<Base>
+  <Header />
+  <main id="main" tabindex="-1">
+    <Hero />
+    <Work />
+    <About />
+  </main>
+  <Contact />
+  <StatusBar />
+</Base>
+
+<script>
+  import { initReveals } from '../scripts/reveal';
+  import { initSmoothScroll } from '../scripts/motion/smooth';
+  import { initParallax } from '../scripts/motion/parallax';
+
+  initSmoothScroll();
+  initParallax();
+  initReveals();
+</script>
+
+<style>
+  main:focus {
+    outline: none;
+  }
+</style>

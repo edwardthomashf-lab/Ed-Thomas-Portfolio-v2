@@ -1,0 +1,95 @@
+// Design tokens. Three tiers, all CSS custom properties so the settings panel
+// can swap them live: primitives (fonts, motion, space), then a semantic
+// palette per theme. Components only ever read the semantic names.
+//
+// Contrast (WCAG 2.2) in both fixed themes: body text ≥ 15:1, muted text
+// ≥ 4.7:1 (including on the raised and hover surfaces), accent text ≥ 4.7:1.
+
+:root {
+  // Type
+  --font-sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --text-label: 0.6875rem; // 11px, mono meta
+  --text-small: 0.8125rem; // 13px
+  --text-body: 0.9375rem; // 15px
+  --text-meta: clamp(1rem, 0.8rem + 0.55vw, 1.25rem); // 16px → 20px, the header row
+  --text-lead: clamp(1.375rem, 0.9rem + 1.5vw, 2.25rem);
+  --text-statement: clamp(1.75rem, 1rem + 2.6vw, 3.5rem);
+  --text-display: clamp(3.5rem, 13.9vw, 17rem);
+
+  --tracking-display: -0.055em;
+  --tracking-tight: -0.03em;
+
+  // Space
+  --margin: clamp(16px, 2.2vw, 32px);
+  --gutter: clamp(12px, 1.1vw, 16px);
+  --section: clamp(96px, 14vw, 200px);
+  --status-h: 44px;
+
+  // Motion: three curves, three durations.
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.83, 0, 0.17, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1: 200ms;
+  --dur-2: 500ms;
+  --dur-3: 800ms;
+
+  // Brand
+  --emerald: #0f7b54;
+
+  // Cursor glow: how far text under the pointer shifts toward the accent.
+  --cursor-glow: 60%;
+  --cursor-glow-size: 240px;
+
+  // Semantic palette: light (default)
+  color-scheme: light;
+  --bg: #f4f3ef;
+  --bg-raised: #ebe9e3;
+  --bg-hover: #e2e0d9;
+  --fg: #1a1a1a;
+  --fg-muted: #62615c;
+  --rule: color-mix(in oklab, var(--fg) 15%, transparent);
+  --rule-strong: color-mix(in oklab, var(--fg) 40%, transparent);
+  --accent: var(--emerald);
+  --accent-text: #0f7b54;
+  --focus: var(--accent-text);
+  --overlay-scrim: color-mix(in oklab, var(--fg) 30%, transparent);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e0e0e;
+  --bg-raised: #181817;
+  --bg-hover: #222220;
+  --fg: #edebe6;
+  --fg-muted: #9a9893;
+  --accent: #2fa977;
+  --accent-text: #4cc391;
+  --overlay-scrim: color-mix(in oklab, #000 60%, transparent);
+}
+
+// "Pick colour": the visitor's colour becomes the page. The settings script
+// measures its luminance and sets data-tone so the ink always contrasts, and
+// derives a split-complementary accent pair in place of the emerald
+// (src/scripts/accent.ts): --pick-accent for marks at 3:1, --pick-accent-text
+// for text at 4.5:1. Ink and muted ink are solved there too (--pick-fg,
+// --pick-muted); the values below are only fallbacks until that has run.
+[data-theme='custom'] {
+  --bg: var(--pick, #f4f3ef);
+  --bg-raised: color-mix(in oklab, var(--bg), var(--fg) 7%);
+  --bg-hover: color-mix(in oklab, var(--bg), var(--fg) 12%);
+  --fg-muted: var(--pick-muted, color-mix(in oklab, var(--fg) 70%, var(--bg)));
+  --accent: var(--pick-accent, var(--fg));
+  --accent-text: var(--pick-accent-text, var(--fg));
+}
+
+[data-theme='custom'][data-tone='light'] {
+  color-scheme: light;
+  --fg: var(--pick-fg, #141414);
+}
+
+[data-theme='custom'][data-tone='dark'] {
+  color-scheme: dark;
+  --fg: var(--pick-fg, #f3f2ee);
+}

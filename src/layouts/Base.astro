@@ -1,0 +1,83 @@
+---
+import '../styles/global.scss';
+import { site } from '../content/site';
+import portrait from '../assets/me/edward.jpg';
+import { getImage } from 'astro:assets';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = site.title, description = site.description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, site.canonicalUrl).toString();
+const ogImage = await getImage({ src: portrait, width: 800, format: 'jpg' });
+---
+
+<!doctype html>
+<html lang="en-GB" data-theme="light" data-motion="on" data-images="on">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(ogImage.src, site.canonicalUrl).toString()} />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="preload" href="/fonts/GeneralSans-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeneralSans-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeneralSans-300.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin />
+
+    <!--
+      Applies the visitor's saved settings before first paint, so there is never
+      a flash of the wrong theme. Mirrors `readSettings` in src/scripts/settings.ts.
+    -->
+    <script is:inline>
+      (() => {
+        const d = document.documentElement;
+        d.classList.add('js');
+        let s = {};
+        try {
+          s = JSON.parse(localStorage.getItem('et:settings') || '{}') || {};
+        } catch (e) {}
+        const mm = (q) => window.matchMedia(q).matches;
+        let theme = s.theme || (mm('(prefers-color-scheme: dark)') ? 'dark' : 'light');
+        if (theme === 'custom' && !s.pick) theme = 'light';
+        d.dataset.theme = theme;
+        if (theme === 'custom') {
+          d.style.setProperty('--pick', s.pick);
+          d.dataset.tone = s.tone === 'dark' ? 'dark' : 'light';
+          // The derived accent pair (src/scripts/accent.ts), so it's there on first paint.
+          if (s.accent) d.style.setProperty('--pick-accent', s.accent);
+          if (s.accentText) d.style.setProperty('--pick-accent-text', s.accentText);
+          if (s.ink) d.style.setProperty('--pick-fg', s.ink);
+          if (s.muted) d.style.setProperty('--pick-muted', s.muted);
+        }
+        d.dataset.motion = s.motion || (mm('(prefers-reduced-motion: reduce)') ? 'off' : 'on');
+        d.dataset.images = s.images === 'off' ? 'off' : 'on';
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <slot />
+
+    <!-- Cursor glow (src/scripts/cursor.ts). Decorative only. -->
+    <div class="cursor-halo" aria-hidden="true"></div>
+    <div class="cursor-tint" aria-hidden="true"></div>
+    <script>
+      import { initCursor } from '../scripts/cursor';
+      initCursor();
+    </script>
+  </body>
+</html>

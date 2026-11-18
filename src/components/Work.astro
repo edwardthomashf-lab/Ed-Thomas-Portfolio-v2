@@ -1,0 +1,356 @@
+---
+import { projects } from '../content/projects';
+import ProjectDialog from './ProjectDialog.astro';
+import ProjectMedia from './ProjectMedia.astro';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Three copies of the four projects make a seamless loop at any width. Only
+ * the first copy is in the tab order and accessibility tree; the copies are
+ * decorative but still clickable.
+ */
+const SETS = 3;
+// Each card floats at its own size and depth, so the row reads like objects
+// on water rather than a grid.
+const scale = [1, 0.84, 1.08, 0.9];
+const lift = [0, 1, -1, 0.5];
+---
+
+<section id="work" class="work" aria-labelledby="work-title">
+  <div class="section-head" data-speed="1.05">
+    <p class="label">( Work )</p>
+    <h2 id="work-title" class="section-head__title">Selected live sites</h2>
+    <p class="label section-head__count">Index {pad(1)} — {pad(projects.length)}</p>
+  </div>
+
+  <div class="flow" data-flow>
+    <canvas class="flow__gl" data-flow-gl aria-hidden="true"></canvas>
+    <ul class="flow__track" data-flow-track>
+      {
+        Array.from({ length: SETS }, (_, set) =>
+          projects.map((project, i) => {
+            const clone = set > 0;
+            return (
+              <li
+                class="flow__item"
+                data-flow-item
+                data-index={i}
+                data-clone={clone ? '' : undefined}
+                aria-hidden={clone ? 'true' : undefined}
+                style={`--s:${scale[i]};--lift:${lift[i]}`}
+              >
+                <div class="flow__float" data-float>
+                  <button
+                    type="button"
+                    class="card"
+                    data-open={project.id}
+                    tabindex={clone ? -1 : undefined}
+                    aria-haspopup={clone ? undefined : 'dialog'}
+                    aria-controls={clone ? undefined : `project-${project.id}`}
+                  >
+                    <span class="card__head">
+                      <span class="card__title">{project.title}</span>
+                      <span class="card__type">
+                        {project.kind} · {project.type}
+                      </span>
+                      <span class="card__num" aria-hidden="true">
+                        {pad(i + 1)}
+                      </span>
+                    </span>
+                    <ProjectMedia project={project} variant="card" />
+                    <span class="card__foot">
+                      <span class="card__line">{project.line}</span>
+                      <span class="card__open label" aria-hidden="true">
+                        Open <span class="card__plus">+</span>
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </li>
+            );
+          }),
+        )
+      }
+    </ul>
+  </div>
+
+  <div class="flow__meta">
+    <p class="label flow__hint">
+      <span class="flow__hint-motion">( Drag or hover — it flows )</span>
+      <span class="flow__hint-static">( Swipe or scroll sideways )</span>
+    </p>
+    <div class="flow__progress" aria-hidden="true"><span data-flow-progress></span></div>
+    <p class="label flow__count" aria-hidden="true"><span data-flow-current>01</span> / {pad(projects.length)}</p>
+  </div>
+
+  {projects.map((project, i) => <ProjectDialog project={project} number={pad(i + 1)} />)}
+</section>
+
+<script>
+  import { initFlow } from '../scripts/flow/flow';
+  import { initOverlay } from '../scripts/flow/overlay';
+
+  initFlow();
+  initOverlay();
+</script>
+
+<style lang="scss">
+  @use '../styles/mq' as *;
+
+  .work {
+    padding: var(--section) 0 0;
+  }
+
+  .section-head {
+    @include index-grid;
+    align-items: baseline;
+    row-gap: 6px;
+    margin-inline: var(--margin);
+    padding-top: 10px;
+    margin-bottom: clamp(16px, 2vw, 28px);
+    border-top: 1px solid var(--rule);
+  }
+
+  .section-head__title {
+    font-size: var(--text-lead);
+    letter-spacing: var(--tracking-tight);
+    line-height: 1;
+
+    @include from($desktop) {
+      grid-column: 2 / span 2;
+    }
+  }
+
+  .section-head__count {
+    display: none;
+
+    @include from($desktop) {
+      display: block;
+      text-align: right;
+    }
+  }
+
+  // The flowing row
+  .flow {
+    --card-w: clamp(250px, 76vw, 340px);
+    --gap: clamp(28px, 4vw, 72px);
+    position: relative;
+    overflow: hidden;
+    padding-block: clamp(48px, 7vw, 110px);
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+
+    @include from($tablet) {
+      --card-w: clamp(300px, 34vw, 520px);
+    }
+
+    @include from($desktop) {
+      --card-w: clamp(320px, 27vw, 520px);
+    }
+
+    &.is-dragging {
+      cursor: grabbing;
+    }
+  }
+
+  .flow__gl {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .flow__track {
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    width: max-content;
+    padding-inline: var(--margin);
+    will-change: transform;
+  }
+
+  .flow__item {
+    flex: none;
+    width: calc(var(--card-w) * var(--s));
+    // Cards sit at different heights, like things bobbing at different depths.
+    margin-top: calc(var(--lift) * clamp(24px, 4vw, 64px));
+  }
+
+  .flow__float {
+    will-change: translate;
+  }
+
+  .flow:not(.is-gl) :global(.media--card) {
+    transform: skewX(var(--skew, 0deg));
+  }
+
+  // Without JS, or with Motion off, the row is a plain sideways scroller.
+  :global(html:not(.js)) .flow,
+  :global(html[data-motion='off']) .flow {
+    cursor: auto;
+    user-select: auto;
+
+    .flow__track {
+      overflow-x: auto;
+      width: auto;
+      transform: none !important;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: var(--margin);
+      padding-bottom: 18px;
+      scrollbar-width: thin;
+    }
+
+    .flow__item {
+      scroll-snap-align: start;
+      margin-top: 0;
+    }
+
+    .flow__float {
+      translate: none !important;
+    }
+
+    [data-clone] {
+      display: none;
+    }
+  }
+
+  .card {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    text-align: left;
+    border-radius: 4px;
+    cursor: inherit;
+  }
+
+  .card__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+    line-height: 1.25;
+  }
+
+  .card__title {
+    grid-column: 1;
+    font-weight: 500;
+  }
+
+  .card__type {
+    grid-column: 1;
+    color: var(--fg-muted);
+  }
+
+  .card__num {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: end;
+    font-family: var(--font-mono);
+    font-size: var(--text-small);
+    color: var(--fg-muted);
+  }
+
+  .card__foot {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: baseline;
+    font-size: var(--text-small);
+    line-height: 1.3;
+  }
+
+  .card__line {
+    color: var(--fg-muted);
+    max-width: 32ch;
+  }
+
+  .card__open {
+    display: inline-flex;
+    gap: 0.6ch;
+    color: var(--fg-muted);
+    transition: color var(--dur-1) var(--ease-out);
+  }
+
+  .card__plus {
+    display: inline-block;
+    transition: transform var(--dur-2) var(--ease-spring);
+  }
+
+  .card:hover .card__open,
+  .card:focus-visible .card__open {
+    color: var(--fg);
+  }
+
+  .card:hover .card__plus,
+  .card:focus-visible .card__plus {
+    transform: rotate(90deg);
+    color: var(--accent-text);
+  }
+
+  .flow__meta {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px var(--gutter);
+    margin-inline: var(--margin);
+
+    @include from($desktop) {
+      grid-template-columns: 1fr 2fr 1fr;
+    }
+  }
+
+  .flow__hint-static {
+    display: none;
+  }
+
+  :global(html[data-motion='off']) .flow__hint-motion {
+    display: none;
+  }
+
+  :global(html[data-motion='off']) .flow__hint-static {
+    display: inline;
+  }
+
+  .flow__progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: relative;
+    height: 1px;
+    background: var(--rule);
+    overflow: hidden;
+
+    @include from($desktop) {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 25%;
+      background: var(--fg);
+      will-change: transform;
+    }
+  }
+
+  .flow__count {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // The progress line and counter follow the drifting row; a static row doesn't need them.
+  :global(html[data-motion='off']) .flow__progress,
+  :global(html[data-motion='off']) .flow__count,
+  :global(html:not(.js)) .flow__progress,
+  :global(html:not(.js)) .flow__count {
+    visibility: hidden;
+  }
+</style>

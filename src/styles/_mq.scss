@@ -1,0 +1,32 @@
+// Breakpoints, shared by every component's scoped styles via
+// `@use '../styles/mq' as *;`.
+$tablet: 720px;
+$desktop: 1024px;
+$wide: 1440px;
+
+@mixin from($bp) {
+  @media (min-width: $bp) {
+    @content;
+  }
+}
+
+@mixin below($bp) {
+  @media (max-width: ($bp - 0.02px)) {
+    @content;
+  }
+}
+
+/// The page's 4 / 2 / 1 column index grid.
+@mixin index-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: var(--gutter);
+
+  @include from($tablet) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include from($desktop) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

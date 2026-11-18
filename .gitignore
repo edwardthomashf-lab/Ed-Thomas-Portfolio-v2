@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+.env
+.netlify/
+
+# Original, full-size screenshots and photo (11MB). The cropped versions the
+# site uses are in src/assets; run `npm run images` locally to regenerate.
+media-source/
